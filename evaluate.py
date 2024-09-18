@@ -1,18 +1,3 @@
-
-""" 
-    
-    Adapted from:
-    Modification by: Gurkirt Singh
-    Modification started: 2nd April 2019
-    large parts of this files are from many github repos
-    mainly adopted from
-    https://github.com/gurkirt/realtime-action-detection
-
-    Please don't remove above credits and give star to these repos
-    Licensed under The MIT License [see LICENSE for details]    
-
-"""
-
 import os
 import pdb
 import time, json
@@ -35,6 +20,7 @@ from data import DetectionDataset, custum_collate
 from models.retinanet_shared_heads import build_retinanet_shared_heads
 from torchvision import transforms
 from data.transforms import Resize
+import subprocess
 
 parser = argparse.ArgumentParser(description='Training single stage FPN with OHEM, resnet as backbone')
 # Name of backbone networ, e.g. resnet18, resnet34, resnet50, resnet101 resnet152 are supported 
@@ -42,26 +28,26 @@ parser.add_argument('--basenet', default='resnet50', help='pretrained base model
 # if output heads are have shared features or not: 0 is no-shareing else sharining enabled
 parser.add_argument('--multi_scale', default=False, type=str2bool,help='perfrom multiscale training')
 parser.add_argument('--shared_heads', default=0, type=int,help='4 head layers')
-parser.add_argument('--num_head_layers', default=4, type=int,help='0 mean no shareding more than 0 means shareing')
+parser.add_argument('--num_head_layers', default=3, type=int,help='0 mean no shareding more than 0 means shareing')
 parser.add_argument('--use_bias', default=True, type=str2bool,help='0 mean no bias in head layears')
 #  Name of the dataset only esad is supported
 parser.add_argument('--dataset', default='esad', help='pretrained base model')
 # Input size of image only 600 is supprted at the moment 
-parser.add_argument('--min_size', default=600, type=int, help='Input Size for FPN')
-parser.add_argument('--max_size', default=1080, type=int, help='Input Size for FPN')
+parser.add_argument('--min_size', default=400, type=int, help='Input Size for FPN')
+parser.add_argument('--max_size', default=400, type=int, help='Input Size for FPN')
 #  data loading argumnets
 parser.add_argument('--batch_size', default=16, type=int, help='Batch size for training')
 # Number of worker to load data in parllel
 parser.add_argument('--num_workers', '-j', default=8, type=int, help='Number of workers used in dataloading')
 # optimiser hyperparameters
 parser.add_argument('--optim', default='SGD', type=str, help='Optimiser type')
-parser.add_argument('--loss_type', default='mbox', type=str, help='loss_type')
+parser.add_argument('--loss_type', default='focal', choices=['mbox', 'focal', 'ohem'], type=str, help='loss_type')
 parser.add_argument('--lr', '--learning-rate', default=0.01, type=float, help='initial learning rate')
-parser.add_argument('--eval_iters', default='5000,6000,7000,9000', type=str, help='Chnage the lr @')
+parser.add_argument('--eval_iters', default='4000,5000,6000,7000,8000,9000', type=str, help='Chnage the lr @')
 
 # Freeze batch normlisatio layer or not 
 parser.add_argument('--fbn', default=True, type=bool, help='if less than 1 mean freeze or else any positive values keep updating bn layers')
-parser.add_argument('--freezeupto', default=1, type=int, help='if 0 freeze or else keep updating bn layers')
+parser.add_argument('--freezeupto', default=0, type=int, help='if 0 freeze or else keep updating bn layers')
 
 # Evaluation hyperparameters
 parser.add_argument('--iou_threshs', default='', type=str, help='Evaluation thresholds')
@@ -79,9 +65,9 @@ parser.add_argument('--man_seed', default=1, type=int, help='manualseed for repr
 parser.add_argument('--multi_gpu', default=1, type=int, help='If  more than then use all visible GPUs by default only one GPU used ') 
 
 # source or dstination directories
-parser.add_argument('--data_root', default='/mnt/mercury-fast/datasets/', help='Location to root directory fo dataset') # /mnt/mars-fast/datasets/
-parser.add_argument('--save_root', default='/mnt/mercury-alpha/', help='Location to save checkpoint models') # /mnt/sun-gamma/datasets/
-parser.add_argument('--model_dir', default='/mnt/mars-gamma/global-models/pytorch-imagenet/', help='Location to where imagenet pretrained models exists') # /mnt/mars-fast/datasets/
+parser.add_argument('--data_root', default='/content/labelled_data/', help='Location to root directory fo dataset') # /mnt/mars-fast/datasets/
+parser.add_argument('--save_root', default='/content/esaddd/results/', help='Location to save checkpoint models') # /mnt/sun-gamma/datasets/
+parser.add_argument('--model_dir', default='/home/system1-user3/Desktop/6630/esaddd/model/', help='Location to where imagenet pretrained models exists') # /mnt/mars-fast/datasets/
 
 
 ## Parse arguments
@@ -98,6 +84,7 @@ torch.set_default_tensor_type('torch.FloatTensor')
 
 def main():
     
+    
     args.exp_name = utils.create_exp_name(args)
 
     args.data_root += args.dataset+'/'
@@ -112,17 +99,17 @@ def main():
     if False: # while validating
         val_dataset = DetectionDataset(root= args.data_root, train=False, input_sets=['val/obj'], transform=val_transform, full_test=False)
     else: # while testing
-        val_dataset = DetectionDataset(root= args.data_root, train=False, input_sets=['testC'], transform=val_transform, full_test=True)
+        val_dataset = DetectionDataset(root= args.data_root, train=False, input_sets=['test'], transform=val_transform, full_test=True)
 
     print('Done Loading Dataset Validation Dataset :::>>>\n',val_dataset.print_str)
 
     args.data_dir = val_dataset.root
     args.num_classes = len(val_dataset.classes) + 1
     args.classes = val_dataset.classes
-    args.head_size = 256
+    args.head_size = 720
     
     net = build_retinanet_shared_heads(args).cuda()
-
+    
     if args.multi_gpu>0:
         print('\nLets do dataparallel\n')
         net = torch.nn.DataParallel(net)
@@ -211,6 +198,7 @@ def main():
         res = overal_json_object[iter]
         fid.write('{:s} {:0.1f} {:0.1f} {:0.1f} {:0.1f}\n'.format(iter, res['10'], res['30'], res['50'], res['mean']))
     fid.close()
+   
 
 
 

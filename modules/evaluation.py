@@ -132,7 +132,7 @@ def evaluate_detections(gt_boxes, det_boxes, CLASSES=[], iou_thresh=0.5):
 
 
 def save_detection_framewise(det_boxes, image_ids, iteration):
-    det_save_dir = '/mnt/mars-beta/gur-workspace/use-ssd-data/UCF101/detections/RGB-01-{:06d}/'.format(iteration)
+    det_save_dir = '/home/system1-user3/Desktop/6630/esaddd/results/'.format(iteration)
     print('Saving detections to', det_save_dir)
     num_images = len(image_ids)
     for idx in range(num_images):
