@@ -47,7 +47,7 @@ parser.add_argument('--eval_iters', default='4000,5000,6000,7000,8000,9000', typ
 
 # Freeze batch normlisatio layer or not 
 parser.add_argument('--fbn', default=True, type=bool, help='if less than 1 mean freeze or else any positive values keep updating bn layers')
-parser.add_argument('--freezeupto', default=0, type=int, help='if 0 freeze or else keep updating bn layers')
+parser.add_argument('--freezeupto', default=0, type=int, help='if 0 freeze or else keep updating bn layers') 
 
 # Evaluation hyperparameters
 parser.add_argument('--iou_threshs', default='', type=str, help='Evaluation thresholds')
