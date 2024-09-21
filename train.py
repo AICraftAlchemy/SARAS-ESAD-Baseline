@@ -131,7 +131,7 @@ def main():
     args.data_root += args.dataset+'/'
     args.save_root = args.save_root+'cache/'+args.exp_name+'/'
 
-    if not os.path.isdir(args.save_root): #if save directory doesn't exist create it
+    if not os.path.isdir(args.save_root): #if save directory doesn't exist create it 
         os.makedirs(args.save_root)
 
     source_dir = args.save_root + 'source/'                                 
